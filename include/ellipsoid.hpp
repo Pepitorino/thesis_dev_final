@@ -14,9 +14,14 @@
 class ellipsoid
 {
 public:
+    ellipsoid(int min_clusters, int max_clusters);
     std::vector<std::vector<Eigen::Vector3d>> gmm_clustering();
     std::vector<EllipsoidParam> ellipsoidize_clusters_CGAL(
         const std::vector<std::vector<Eigen::Vector3d>> frontier_clusters,
         const std::vector<std::vector<Eigen::Vector3d>> clusters
     );
+
+private:
+    int min_clusters;
+    int max_clusters;
 };

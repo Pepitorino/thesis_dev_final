@@ -1,0 +1,39 @@
+{
+    "camera": {
+        "width": null,
+        "height": null,
+        "fx": null,
+        "fy": null,
+        "cx": null,
+        "cy": null,
+        "max_range": null
+    },
+
+    "bounding_box": {
+        "bbx_min": [],
+        "bbx_max": []
+    },
+
+    "plants_region": {
+        "num_plants_bbx": null,
+        "plants_bbx_min": [],
+        "plants_bbx_max": []
+    },
+
+    "clustering": {
+        "min_clusters": null,
+        "max_clusters": null
+    },
+
+    "octomap": {
+        "resolution": null,
+        "dx": null,
+        "dy": null,
+        "dz": null
+    },
+
+    "xyzypgenf": {
+        "vp_min": [],
+        "vp_max": []
+    }
+}
