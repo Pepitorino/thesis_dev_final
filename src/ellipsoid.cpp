@@ -38,19 +38,19 @@ std::vector<std::vector<Eigen::Vector3d>> ellipsoid::gmm_clustering(
 
     std::vector<std::vector<Eigen::Vector3d>> clustered_clouds;
 
-    if (samples.rows >= 2*max_gmm_cluster_num_)
+    if (samples.rows >= 2*this->max_clusters)
     {
-        printf("sample rows > 2*max_gmm_cluster_num_");
+        printf("sample rows > 2*this->max_clusters");
         // 创建并训练 GMM
         cv::Mat output_labels;
-        int gmm_cnt = max_gmm_cluster_num_ - min_gmm_cluster_num_ + 1;
+        int gmm_cnt = this->max_clusters - this->min_clusters + 1;
         // 用于多线程存储
         std::vector<double> cluster_values(gmm_cnt);
         std::vector<std::vector<std::vector<Eigen::Vector3d>>> clustered_clouds_vec(gmm_cnt);
         
         printf("clustering!\n");
         #pragma omp parallel for
-        for (size_t i = min_gmm_cluster_num_; i <= size_t(max_gmm_cluster_num_); i++)
+        for (size_t i = this->min_clusters; i <= size_t(this->max_clusters); i++)
         {   
             if (size_t(samples.rows) < i)
             {
@@ -114,8 +114,8 @@ std::vector<std::vector<Eigen::Vector3d>> ellipsoid::gmm_clustering(
             // mtx.lock();
             // LOG(INFO) << "cluster num: " << i << " value: " << value;
             // mtx.unlock();
-            cluster_values[i-min_gmm_cluster_num_] = value;
-            clustered_clouds_vec[i-min_gmm_cluster_num_] = clustered_clouds_tmp;
+            cluster_values[i-this->min_clusters] = value;
+            clustered_clouds_vec[i-this->min_clusters] = clustered_clouds_tmp;
         }
 
         // // 在 cluster_values 中找出最大值的索引
