@@ -9,11 +9,11 @@ class nbvstrategy
 {
 public:
     nbvstrategy();
-    int initialize();
+    int initialize(std::string settings_path);
     Eigen::Matrix4d getCameraPose(const Eigen::Matrix<double,5,1> &vp);
     std::vector<Eigen::Vector3d> projectEllipsoidstoImage(
         const std::vector<EllipsoidParam> &ellipsoids,
-        const Eigen::Matrix4d,
+        const Eigen::Matrix4d &T_cam_world,
         const Camera &cam);
 private:
     voxelstruct* voxel_struct;

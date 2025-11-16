@@ -31,9 +31,9 @@ Eigen::Vector3d getVec3OrDefault(const json& j, const std::string& key) {
     return Eigen::Vector3d::Zero();
 }
 
-int nbvstrategy::initialize() 
+int nbvstrategy::initialize(std::string settings_path) 
 {
-    std::ifstream file("settings.json");
+    std::ifstream file(settings_path);
     if(!file.is_open()) {
         std::cerr << "Failed to load settings";
         return -1;
@@ -51,13 +51,29 @@ int nbvstrategy::initialize()
     double fy = getOrDefault<double>(cam, "fy", 0);
     double cx = getOrDefault<double>(cam, "cx", 0);
     double cy = getOrDefault<double>(cam, "cy", 0);
-    double min_range = getOrDefault<double>(cam "min_range", 0)
+    double min_range = getOrDefault<double>(cam, "min_range", 0);
     double max_range = getOrDefault<double>(cam, "max_range", 0);
+
+    std::cout << "Camera loaded!" << std::endl;
+    std::cout << "Parameters: \n" <<
+        "Width: " << width << "\n" <<
+        "Heigh: " << height << "\n" <<
+        "fx: " << fx << "\n" <<
+        "fy: " << fy << "\n" <<
+        "cx: " << cx << "\n" <<
+        "cy: " << cy << "\n" <<
+        "Minimum Range: " << min_range << "\n" <<
+        "Maximum Range: " << max_range << "\n" << std::endl;
 
     // loads global bbx
     auto bbx = cfg["bounding_box"];
     std::vector<double> bbx_min = getVectorOrEmpty(bbx, "bbx_min");
     std::vector<double> bbx_max = getVectorOrEmpty(bbx, "bbx_max");
+
+    std::cout << "Bounding Box loaded!" << std::endl;
+    std::cout << "Parameters: \n" <<
+        "Minimum Bounding Box (x,y,z): " << bbx_min[0] << ", " << bbx_min[1] << ", " << bbx_min[2] << "\n" <<
+        "Maximum Bounding Box (x,y,z): " << bbx_max[0] << ", " << bbx_max[1] << ", " << bbx_max[2] << std::endl;        
 
     // loads plant bbxs
     std::vector<PlantBBX> plant_bbx_list;
@@ -69,22 +85,42 @@ int nbvstrategy::initialize()
         plant_bbx_list.push_back(pb);
     }
     
+    std::cout << "Plants Bounding Boxes loaded! " << std::endl;
+    for (auto& p : plant_bbxz_list) {
+        std::cout << "Plant Bounding Box (x,y,z): " << p.min[0] << ", " << p.min[1] << ", " << p.min[2] << std::endl;
+        std::cout << "Plant Bounding Box (x,y,z): " << p.max[0] << ", " << p.max[1] << ", " << p.max[2] << std::endl;
+    }   
+
     // loads cluster numbers;
     auto clustering = cfg["clustering"];
     int min_clusters = getOrDefault(clustering, "min_clusters", 2);
     int max_clusters = getOrDefault(clustering, "max_clusters", 10);
 
+    std::cout << "Cluster sized loaded! " << std::endl;
+    std::coud << "Minimum Clusters: " << min_clusters << std::endl;
+    std::cout << "Maximum Clusters: " << max_clusters << std::endl;
+
     // loads octomap res
     auto octomap = cfg["octomap"];
     double resolution = getOrDefault(octomap, "resolution",  0.05);
+
+    std::cout << "Octomap resolution loaded! " << std::endl;
+    std::cout << "Resolution: " << resolution << std::endl;
 
     // loads viewpoint generation frequency
     auto xyzypgenf = cfg["xyzypgenf"];
     double dx = getOrDefault(xyzypgenf, "dx", 0.05);
     double dy = getOrDefault(xyzypgenf, "dy", 0.05);
     double dz = getOrDefault(xyzypgenf, "dz", 0.05);
-    double dyaw = getOrDefault(xyzypgenf, "dyaw", 8);
-    double dpitch = getOrDefault(xyzypgenf, "dpitch", 8);
+    double dyaw = getOrDefault(xyzypgenf, "dyaw", 4);
+    double dpitch = getOrDefault(xyzypgenf, "dpitch", 4);
+
+    std::cout << "Viewpoint Generation Frequency loaded!" << std::endl;
+    std::cout << "dx: " << dx << std::endl;
+    std::cout << "dy: " << dy << std::endl;
+    std::cout << "dz: " << dz << std::endl;
+    std::cout << "dyaw: " << dyaw << std::endl;
+    std::cout << "dpitch: " << dpitch << std::endl;
 
     // assigning to class members
     // camera
@@ -124,6 +160,12 @@ int nbvstrategy::initialize()
     this->ellipsoid_fitting = new ellipsoid(this->min_clusters, this->max_clusters);
 
     this->generateViewpoints();
+
+    cout << "Viewpoints Generated!" << std::endl;
+    cout << "Number of viewpoints: " << this->viewpoints.size() << std::endl;
+    cout << "First viewpoint: " << viewpoints.front().transpose() << std::endl;
+    cout << "Last viewpoint: " << viewpoints.back(). transpose() << std::endl;
+
     return 0;
 }
 

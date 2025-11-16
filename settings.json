@@ -11,8 +11,8 @@
     },
 
     "bounding_box": {
-        "bbx_min": [],
-        "bbx_max": []
+        "bbx_min": [0.0,0.0,0.0],
+        "bbx_max": [5.0,5.0,5.0]
     },
 
     "plants_region": {
@@ -20,28 +20,24 @@
             {
                 "min": { "x": 0.1, "y": 0.2, "z": 0.0 },
                 "max": { "x": 0.3, "y": 0.4, "z": 0.5 }
-            },
-            {
-                "min": { "x": 1.5, "y": 2.0, "z": 0.0 },
-                "max": { "x": 1.8, "y": 2.4, "z": 0.6 }
             }
         ]
     },
 
     "clustering": {
-        "min_clusters": null,
-        "max_clusters": null
+        "min_clusters": 2,
+        "max_clusters": 50
     },
 
     "octomap": {
-        "resolution": null,
+        "resolution": 0.05
     },
 
     "xyzypgenf": {
-        "dx": null,
-        "dy": null,
-        "dz": null,
-        "dyaw": null,
-        "dpitch": null
+        "dx": 0.1,
+        "dy": 0.1,
+        "dz": 0.1,
+        "dyaw": 30,
+        "dpitch": 30
     }
 }

@@ -20,7 +20,7 @@ public:
     );
     std::vector<EllipsoidParam> ellipsoidize_clusters_CGAL(
         const std::vector<std::vector<Eigen::Vector3d>> frontier_clusters,
-        const std::vector<std::vector<Eigen::Vector3d>> clusters
+        const std::vector<std::vector<Eigen::Vector3d>> clusters,
         const std::vector<std::vector<Eigen::Vector3d>> roi_surface_frontier
     );
 
