@@ -1,4 +1,3 @@
-#pragma once
 #include "ellipsoid.hpp"
 #include "structs.hpp"
 #include "nbvstrategy.hpp"

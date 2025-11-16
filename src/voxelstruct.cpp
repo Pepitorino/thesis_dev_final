@@ -1,4 +1,3 @@
-#pragma once
 #include "voxelstruct.hpp"
 #include <open3d/Open3D.h>
 #include <octomap/Pointcloud.h>

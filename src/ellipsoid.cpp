@@ -1,4 +1,3 @@
-#pragma once
 #include "ellipsoid.hpp"
 
 ellipsoid::ellipsoid(int min_clusters, int max_clusters) {

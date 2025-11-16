@@ -1,4 +1,3 @@
-#pragma once
 #include <iostream>
 #include "ellipsoid.hpp"
 #include "nbvstrategy.hpp"

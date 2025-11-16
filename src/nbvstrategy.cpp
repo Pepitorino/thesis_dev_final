@@ -1,4 +1,3 @@
-#pragma once
 #include "nbvstrategy.hpp"
 #include "json.hpp"
 
