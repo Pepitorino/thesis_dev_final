@@ -1,13 +1,14 @@
 #include "nbvstrategy.hpp"
 #include "json.hpp"
 
+using json = nlohmann::json;
+
 nbvstrategy::nbvstrategy() {
 
 }
 
 template<typename T>
 T getOrDefault(const json& j, const std::string& key, T fallback) {
-    using namespace nlohmann::json_abi_v3_12_0;
     if (j.contains(key) && !j[key].is_null()) {
         return j[key].get<T>();
     }
@@ -15,14 +16,12 @@ T getOrDefault(const json& j, const std::string& key, T fallback) {
 }
 
 std::vector<double> getVectorOrEmpty(const json& j, const std::string& key) {
-    using namespace nlohmann::json_abi_v3_12_0;
     if (j.contains(key) && j[key].is_array())
         return j[key].get<std::vector<double>>();
     return {};
 }
 
 Eigen::Vector3d getVec3OrDefault(const json& j, const std::string& key) {
-    using namespace nlohmann::json_abi_v3_12_0;
     if (j.contains(key)) {
         const auto& obj = j[key];
         if (obj.contains("x") && obj.contains("y") && obj.contains("z")) {
@@ -33,8 +32,6 @@ Eigen::Vector3d getVec3OrDefault(const json& j, const std::string& key) {
 }
 
 int nbvstrategy::initialize() {
-    using namespace nlohmann::json_abi_v3_12_0;
-
     std::ifstream file("settings.json");
     if(!file.is_open()) {
         std::cerr << "Failed to load settings";
@@ -143,7 +140,7 @@ void nbvstrategy::generateViewpoints() {
         std::vector<Eigen::Matrix<double, 5, 1>> local_views;
 
         #pragma omp for nowait
-        for (size_t ix = 0; ix <= nx; ++x) {
+        for (size_t ix = 0; ix <= nx; ++ix) {
             double x = this->bbx_min[0] + (double)ix * this->dx;
             for (double y = this->bbx_min[1]; y <= this->bbx_max[1]; y+= this->dy) {
                 for (double z = this->bbx_min[2]; z <= this->bbx_max[2]; z += this->dz) {

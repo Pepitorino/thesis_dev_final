@@ -1,12 +1,13 @@
 {
     "camera": {
-        "width": null,
-        "height": null,
-        "fx": null,
-        "fy": null,
-        "cx": null,
-        "cy": null,
-        "max_range": null
+        "width": 512,
+        "height": 424,
+        "fx": 365.456,
+        "fy": 365.456,
+        "cx": 254.878,
+        "cy": 205.395,
+        "min_range": 0.5,
+        "max_range": 2.5
     },
 
     "bounding_box": {
