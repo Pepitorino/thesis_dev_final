@@ -32,4 +32,6 @@ private:
 
     void generateViewpoints();
     std::vector<Eigen::Matrix<double,5,1>> viewpoints;
+
+    std::vector<EllipsoidParam> ellipsoid_parameters;
 };

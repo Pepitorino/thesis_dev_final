@@ -223,17 +223,26 @@ void nbvstrategy::getNBV(std::string view_file_path, Eigen::Vector3d coordinates
     std::cout << "Loaded point cloud with " << pcd.points_.size() << " points." << std::endl;
 
     // crop point cloud
-    this->voxel_struct.cropBBX(this->bbx_min, this->bbx_max, pcd);
+    this->voxel_struct->cropBBX(this->bbx_min, this->bbx_max, pcd);
     cout << "\nPoint Cloud cropped!" << std::endl;
     cout << "New point cloud size: " << pcd.points_.size() << std::endl;
 
     // insert point cloud into voxelstruct
-    this->voxel_struct.insertPointCloud(&pcd, camera_coordinates);
+    this->voxel_struct->insertPointCloud(&pcd, camera_coordinates);
+    cout << "\nPoint Cloud inserted! " << std::endl;
+    cout << "New size of Octree: " << this->voxel_struct->getNumLeafNodes(); 
 
     // classify voxels
-    this->voxel_struct.classifyVoxels();
+    this->voxel_struct->classifyVoxels();
 
     // after fixing the voxels and preprocessing them, next is to do ellipsoid fitting
-    
+    std::vector<Eigen::Vector3d> surface_frontiers = this->voxel_struct->getSurfaceFrontiers();
+    std::vector<Eigen::Vector3d> occupied_voxels = this->voxel_struct->getOccupiedVoxels();
+    std::vector<Eigen::Vector3d> roi_surface_frontier = this->voxel_struct->getROISurfaceFrontiers();
+
+    // cluster each of these sets using gmm clusters
+    frontier_clusters = gmm_Clustering()
+    // 
+
 }
 
