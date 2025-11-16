@@ -214,7 +214,7 @@ void nbvstrategy::generateViewpoints()
     }
 }
 
-void nbvstrategy::getNBV(std::string view_file_path, Eigen::Vector3d coordinates, Eigen::Matrix4d camera_pose_relative_to_world) {
+void nbvstrategy::getNBV(std::string view_file_path, Eigen::Vector3d coordinates, Eigen::Matrix4d camera_pose_relative_to_world, Eigen::Vector3d camera_coordinates) {
     geometry::PointCloud pcd;
     if (!io::ReadPointCloud(ply_path, pcd)) {
         std::cerr << "Failed to read PLY file: " << ply_path << std::endl;
@@ -222,15 +222,18 @@ void nbvstrategy::getNBV(std::string view_file_path, Eigen::Vector3d coordinates
     }
     std::cout << "Loaded point cloud with " << pcd.points_.size() << " points." << std::endl;
 
-    //crop point cloud
+    // crop point cloud
     this->voxel_struct.cropBBX(this->bbx_min, this->bbx_max, pcd);
     cout << "\nPoint Cloud cropped!" << std::endl;
     cout << "New point cloud size: " << pcd.points_.size() << std::endl;
 
-    //insert point cloud into voxelstruct
-    this->voxel_struct.insertPointCloud();
+    // insert point cloud into voxelstruct
+    this->voxel_struct.insertPointCloud(&pcd, camera_coordinates);
 
-    //classify voxels
-    this->voxel_struct.classifyVoxels
+    // classify voxels
+    this->voxel_struct.classifyVoxels();
+
+    // after fixing the voxels and preprocessing them, next is to do ellipsoid fitting
+    
 }
 
