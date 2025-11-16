@@ -17,3 +17,8 @@ struct Camera {
     double cy = height / 2.0;
     double max_range = 2.0; // meters
 };
+
+struct PlantBBX {
+    Eigen::Vector3d min;
+    Eigen::Vector3d max;
+}

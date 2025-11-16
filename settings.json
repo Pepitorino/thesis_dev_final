@@ -15,9 +15,16 @@
     },
 
     "plants_region": {
-        "num_plants_bbx": null,
-        "plants_bbx_min": [],
-        "plants_bbx_max": []
+        "plants": [
+            {
+                "min": { "x": 0.1, "y": 0.2, "z": 0.0 },
+                "max": { "x": 0.3, "y": 0.4, "z": 0.5 }
+            },
+            {
+                "min": { "x": 1.5, "y": 2.0, "z": 0.0 },
+                "max": { "x": 1.8, "y": 2.4, "z": 0.6 }
+            }
+        ]
     },
 
     "clustering": {
@@ -27,13 +34,13 @@
 
     "octomap": {
         "resolution": null,
-        "dx": null,
-        "dy": null,
-        "dz": null
     },
 
     "xyzypgenf": {
-        "vp_min": [],
-        "vp_max": []
+        "dx": null,
+        "dy": null,
+        "dz": null,
+        "dyaw": null,
+        "dpitch": null
     }
 }
