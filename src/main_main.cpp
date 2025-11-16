@@ -27,11 +27,13 @@ int main() {
         if (choice == 1) {
             {
                 nbv.initialize();
-                // initialize
             }
         }
         else if (choice == 2) {
-            {
+            {  
+                cout << "Enter next file path: ";
+                cin >> fp;
+                
                 // get next best view
             }
         }
@@ -62,6 +64,7 @@ int main() {
         }
         else if (choice == 8) {
             cout << "Exiting...\n";
+            nbv.destroy();
             break;
         }
         else {

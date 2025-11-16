@@ -1,3 +1,6 @@
+#include <iostream>
+#include <open3d/Open3D.h>
+#include <Eigen/Dense>
 #include "nbvstrategy.hpp"
 #include "json.hpp"
 
@@ -5,6 +8,12 @@ using json = nlohmann::json;
 
 nbvstrategy::nbvstrategy() {
 
+}
+
+void nbvstrategy::destroy() {
+    delete this->voxel_struct;
+    delete this->ellipsoid_fitting;
+    return; 
 }
 
 template<typename T>
@@ -73,7 +82,7 @@ int nbvstrategy::initialize(std::string settings_path)
     std::cout << "Bounding Box loaded!" << std::endl;
     std::cout << "Parameters: \n" <<
         "Minimum Bounding Box (x,y,z): " << bbx_min[0] << ", " << bbx_min[1] << ", " << bbx_min[2] << "\n" <<
-        "Maximum Bounding Box (x,y,z): " << bbx_max[0] << ", " << bbx_max[1] << ", " << bbx_max[2] << std::endl;        
+        "Maximum Bounding Box (x,y,z): " << bbx_max[0] << ", " << bbx_max[1] << ", " << bbx_max[2] << std::endl << std::endl;        
 
     // loads plant bbxs
     std::vector<PlantBBX> plant_bbx_list;
@@ -86,9 +95,9 @@ int nbvstrategy::initialize(std::string settings_path)
     }
     
     std::cout << "Plants Bounding Boxes loaded! " << std::endl;
-    for (auto& p : plant_bbxz_list) {
+    for (auto& p : plant_bbx_list) {
         std::cout << "Plant Bounding Box (x,y,z): " << p.min[0] << ", " << p.min[1] << ", " << p.min[2] << std::endl;
-        std::cout << "Plant Bounding Box (x,y,z): " << p.max[0] << ", " << p.max[1] << ", " << p.max[2] << std::endl;
+        std::cout << "Plant Bounding Box (x,y,z): " << p.max[0] << ", " << p.max[1] << ", " << p.max[2] << std::endl << std::endl;
     }   
 
     // loads cluster numbers;
@@ -97,15 +106,15 @@ int nbvstrategy::initialize(std::string settings_path)
     int max_clusters = getOrDefault(clustering, "max_clusters", 10);
 
     std::cout << "Cluster sized loaded! " << std::endl;
-    std::coud << "Minimum Clusters: " << min_clusters << std::endl;
-    std::cout << "Maximum Clusters: " << max_clusters << std::endl;
+    std::cout << "Minimum Clusters: " << min_clusters << std::endl;
+    std::cout << "Maximum Clusters: " << max_clusters << std::endl << std::endl;
 
     // loads octomap res
     auto octomap = cfg["octomap"];
     double resolution = getOrDefault(octomap, "resolution",  0.05);
 
     std::cout << "Octomap resolution loaded! " << std::endl;
-    std::cout << "Resolution: " << resolution << std::endl;
+    std::cout << "Resolution: " << resolution << std::endl << std::endl;
 
     // loads viewpoint generation frequency
     auto xyzypgenf = cfg["xyzypgenf"];
@@ -120,7 +129,7 @@ int nbvstrategy::initialize(std::string settings_path)
     std::cout << "dy: " << dy << std::endl;
     std::cout << "dz: " << dz << std::endl;
     std::cout << "dyaw: " << dyaw << std::endl;
-    std::cout << "dpitch: " << dpitch << std::endl;
+    std::cout << "dpitch: " << dpitch << std::endl << std::endl;
 
     // assigning to class members
     // camera
@@ -161,10 +170,10 @@ int nbvstrategy::initialize(std::string settings_path)
 
     this->generateViewpoints();
 
-    cout << "Viewpoints Generated!" << std::endl;
-    cout << "Number of viewpoints: " << this->viewpoints.size() << std::endl;
-    cout << "First viewpoint: " << viewpoints.front().transpose() << std::endl;
-    cout << "Last viewpoint: " << viewpoints.back(). transpose() << std::endl;
+    std::cout << "Viewpoints Generated!" << std::endl;
+    std::cout << "Number of viewpoints: " << this->viewpoints.size() << std::endl;
+    std::cout << "First viewpoint: " << viewpoints.front().transpose() << std::endl;
+    std::cout << "Last viewpoint: " << viewpoints.back(). transpose() << std::endl;
 
     return 0;
 }
@@ -203,5 +212,25 @@ void nbvstrategy::generateViewpoints()
         #pragma omp critical
         viewpoints.insert(viewpoints.end(), local_views.begin(), local_views.end());
     }
+}
+
+void nbvstrategy::getNBV(std::string view_file_path, Eigen::Vector3d coordinates, Eigen::Matrix4d camera_pose_relative_to_world) {
+    geometry::PointCloud pcd;
+    if (!io::ReadPointCloud(ply_path, pcd)) {
+        std::cerr << "Failed to read PLY file: " << ply_path << std::endl;
+        return 1;
+    }
+    std::cout << "Loaded point cloud with " << pcd.points_.size() << " points." << std::endl;
+
+    //crop point cloud
+    this->voxel_struct.cropBBX(this->bbx_min, this->bbx_max, pcd);
+    cout << "\nPoint Cloud cropped!" << std::endl;
+    cout << "New point cloud size: " << pcd.points_.size() << std::endl;
+
+    //insert point cloud into voxelstruct
+    this->voxel_struct.insertPointCloud();
+
+    //classify voxels
+    this->voxel_struct.classifyVoxels
 }
 

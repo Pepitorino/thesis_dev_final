@@ -80,6 +80,10 @@ void voxelstruct::insertPointCloud(
 }
 
 void voxelstruct::classifyVoxels() {
+    this->surface_frontiers.clear();
+    this->occupied_voxels.clear();
+    this->roi_surface_frontier.clear();
+
     const double res = this->resolution;
     const int dirs[6][3] = {
         {1, 0, 0}, {-1, 0, 0},
