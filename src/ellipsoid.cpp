@@ -170,7 +170,7 @@ std::vector<std::vector<Eigen::Vector3d>> ellipsoid::gmm_clustering(
 
 std::vector<EllipsoidParam> ellipsoid::ellipsoidize_clusters_CGAL(
     const std::vector<std::vector<Eigen::Vector3d>> frontier_clusters,
-    const std::vector<std::vector<Eigen::Vector3d>> clusters
+    const std::vector<std::vector<Eigen::Vector3d>> occupied_clusters
 ) {
     typedef CGAL::Cartesian_d<double>                              Kernel;
     typedef CGAL::MP_Float                                         ET;

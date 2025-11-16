@@ -21,4 +21,4 @@ struct Camera {
 struct PlantBBX {
     Eigen::Vector3d min;
     Eigen::Vector3d max;
-}
+};

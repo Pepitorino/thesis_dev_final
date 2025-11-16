@@ -1,3 +1,4 @@
+#pragma once
 #include "nbvstrategy.hpp"
 #include "json.hpp"
 
@@ -7,6 +8,7 @@ nbvstrategy::nbvstrategy() {
 
 template<typename T>
 T getOrDefault(const json& j, const std::string& key, T fallback) {
+    using namespace nlohmann::json_abi_v3_12_0;
     if (j.contains(key) && !j[key].is_null()) {
         return j[key].get<T>();
     }
@@ -14,12 +16,14 @@ T getOrDefault(const json& j, const std::string& key, T fallback) {
 }
 
 std::vector<double> getVectorOrEmpty(const json& j, const std::string& key) {
+    using namespace nlohmann::json_abi_v3_12_0;
     if (j.contains(key) && j[key].is_array())
         return j[key].get<std::vector<double>>();
     return {};
 }
 
 Eigen::Vector3d getVec3OrDefault(const json& j, const std::string& key) {
+    using namespace nlohmann::json_abi_v3_12_0;
     if (j.contains(key)) {
         const auto& obj = j[key];
         if (obj.contains("x") && obj.contains("y") && obj.contains("z")) {
@@ -30,6 +34,8 @@ Eigen::Vector3d getVec3OrDefault(const json& j, const std::string& key) {
 }
 
 int nbvstrategy::initialize() {
+    using namespace nlohmann::json_abi_v3_12_0;
+
     std::ifstream file("settings.json");
     if(!file.is_open()) {
         std::cerr << "Failed to load settings";
@@ -117,7 +123,7 @@ int nbvstrategy::initialize() {
     this->dpitch = M_PI/dpitch;
 
     this->voxel_struct = new voxelstruct(this->resolution);
-    this->ellipsoid_fitting = new ellipsoid_fitting(this->min_clusters, this->max_clusters);
+    this->ellipsoid_fitting = new ellipsoid(this->min_clusters, this->max_clusters);
 
     this->generateViewpoints();
     return 0;
@@ -131,14 +137,15 @@ void nbvstrategy::generateViewpoints() {
     size_t npitch = (this->bbx_max[0] - this->bbx_min[0])/this->dx+1;
 
     size_t total = nx*ny*nz*nyaw*npitch+5;
-    this->viewpoints,reserve(total);
+    this->viewpoints.reserve(total);
 
     #pragma omp parallel
     {
         std::vector<Eigen::Matrix<double, 5, 1>> local_views;
 
         #pragma omp for nowait
-        for (double x = this->bbx_min[0]; x <= this->bbx_max[0]; x += this->dx) {
+        for (size_t ix = 0; ix <= nx; ++x) {
+            double x = this->bbx_min[0] + (double)ix * this->dx;
             for (double y = this->bbx_min[1]; y <= this->bbx_max[1]; y+= this->dy) {
                 for (double z = this->bbx_min[2]; z <= this->bbx_max[2]; z += this->dz) {
                     for (double pitch = 0; pitch < M_PI; pitch+= dpitch) {
