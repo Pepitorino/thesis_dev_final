@@ -31,7 +31,8 @@ Eigen::Vector3d getVec3OrDefault(const json& j, const std::string& key) {
     return Eigen::Vector3d::Zero();
 }
 
-int nbvstrategy::initialize() {
+int nbvstrategy::initialize() 
+{
     std::ifstream file("settings.json");
     if(!file.is_open()) {
         std::cerr << "Failed to load settings";
@@ -126,7 +127,8 @@ int nbvstrategy::initialize() {
     return 0;
 }
 
-void nbvstrategy::generateViewpoints() {
+void nbvstrategy::generateViewpoints() 
+{
     size_t nx = (this->bbx_max[0] - this->bbx_min[0])/this->dx+1;
     size_t ny = (this->bbx_max[0] - this->bbx_min[0])/this->dx+1;
     size_t nz = (this->bbx_max[0] - this->bbx_min[0])/this->dx+1;
@@ -160,3 +162,4 @@ void nbvstrategy::generateViewpoints() {
         viewpoints.insert(viewpoints.end(), local_views.begin(), local_views.end());
     }
 }
+

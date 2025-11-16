@@ -26,6 +26,7 @@ int main() {
 
         if (choice == 1) {
             {
+                nbv.initialize();
                 // initialize
             }
         }

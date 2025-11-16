@@ -169,7 +169,8 @@ std::vector<std::vector<Eigen::Vector3d>> ellipsoid::gmm_clustering(
 
 std::vector<EllipsoidParam> ellipsoid::ellipsoidize_clusters_CGAL(
     const std::vector<std::vector<Eigen::Vector3d>> frontier_clusters,
-    const std::vector<std::vector<Eigen::Vector3d>> occupied_clusters
+    const std::vector<std::vector<Eigen::Vector3d>> occupied_clusters,
+    const std::vector<std::vector<Eigen::Vector3d>> roi_surface_frontier
 ) {
     typedef CGAL::Cartesian_d<double>                              Kernel;
     typedef CGAL::MP_Float                                         ET;
@@ -186,6 +187,7 @@ std::vector<EllipsoidParam> ellipsoid::ellipsoidize_clusters_CGAL(
 
     std::cout << "Frontier clusters: " << frontier_clusters.size() << std::endl;
     std::cout << "Occupied clusters: " << occupied_clusters.size() << std::endl;
+    std::cout << "ROI Surface Frontier clusters: " << roi_surface_frontier.size() << std::endl;
 
     // --- FRONTIER CLUSTERS ---
     if (!frontier_clusters.empty())
@@ -225,7 +227,45 @@ std::vector<EllipsoidParam> ellipsoid::ellipsoidize_clusters_CGAL(
         std::cout << "Frontier ellipsoids computed: " << frontier_clusters.size() << std::endl;
     }
 
-    // --- OCCUPIED CLUSTERS ---
+    // --- ROI Surface Frontier ---
+    if (!roi_surface_frontier.empty())
+    {
+        #pragma omp parallel for
+        for (size_t i = 0; i < roi_surface_frontier.size(); ++i)
+        {
+            Point_list points;
+            for (const auto &v : roi_surface_frontier[i])
+            {
+                std::vector<double> vec(v.data(), v.data() + 3);
+                points.push_back(Point(3, vec.begin(), vec.end()));
+            }
+
+            AME mel(eps, points.begin(), points.end(), traits);
+            if (!mel.is_full_dimensional()) continue;
+
+            EllipsoidParam e;
+            auto radii = mel.axes_lengths_begin();
+            auto centroid = mel.center_cartesian_begin();
+            auto d0 = mel.axis_direction_cartesian_begin(0);
+            auto d1 = mel.axis_direction_cartesian_begin(1);
+            auto d2 = mel.axis_direction_cartesian_begin(2);
+
+            e.pose = Eigen::Matrix4d::Identity();
+            e.pose.block<3,1>(0,3) = Eigen::Vector3d(centroid[0], centroid[1], centroid[2]);
+            e.pose.block<3,3>(0,0) = (Eigen::Matrix3d() <<
+                d0[0], d1[0], d2[0],
+                d0[1], d1[1], d2[1],
+                d0[2], d1[2], d2[2]).finished();
+            e.radii = Eigen::Vector3d(radii[0], radii[1], radii[2]);
+            e.type = "roi_surface_frontier";
+
+            #pragma omp critical
+            ellipsoid_vec.push_back(e);
+        }
+        std::cout << "ROI Surface Frontier ellipsoids computed: " << occupied_clusters.size() << std::endl;
+    }
+
+        // --- OCCUPIED CLUSTERS ---
     if (!occupied_clusters.empty())
     {
         #pragma omp parallel for
