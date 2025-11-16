@@ -50,6 +50,7 @@ int nbvstrategy::initialize() {
     double fy = getOrDefault<double>(cam, "fy", 0);
     double cx = getOrDefault<double>(cam, "cx", 0);
     double cy = getOrDefault<double>(cam, "cy", 0);
+    double min_range = getOrDefault<double>(cam "min_range", 0)
     double max_range = getOrDefault<double>(cam, "max_range", 0);
 
     // loads global bbx
