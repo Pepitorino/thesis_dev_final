@@ -215,21 +215,28 @@ void nbvstrategy::generateViewpoints()
 }
 
 Eigen::Matrix4d nbvstrategy::getCameraPose(const Eigen::Matrix<double,5,1> &vp) {
-
+    Eigen::Matrix3d R_yaw = Eigen::AngleAxisd(vp(3),Eigen::Vector3d::UnitY());
+    Eigen::Matrix3d R_pitch = Eigen::AngleAxisd(vp(4), Eigen::Vector3d::UnitZ());
+    Eigen::Matrix4d T;
+    T.block<3,3>(0,0) = R_yaw*R_pitch;
+    T.block<3,1>(0,3) = Eigen::Vector3d(vp(0),vp(1),vp(2)); 
+    return T;
 }
 
+//for futher optimization - parallelable
 open3d::geometry::PointCloud T_cam_pcd_to_world(
     const Eigen::Matrix4d &T_cam_world, 
     const open3d::geometry::PointCloud* pcd) 
 {
     open3d::geometry::PointCloud pcd_world;
     pcd_world.points_.resize(pcd->points_.size());
+    pcd_world.colors_.resize(pcd->colors_.size());
     
     #pragma omp parallel for
     for (int i = 0; i < static_cast<int>(pcd->points_.size()); i++) {
         const auto &p = pcd->points_[i];
         Eigen::Vector4d p_homogeneous(p(0),p(1),p(2), 1.0);
-        Eigen::Vector4d p_transformed_homogeneous = T_cam_world * p_hom;
+        Eigen::Vector4d p_transformed_homogeneous = T_cam_world * p_homogeneous;
         pcd_world.points_[i] = p_transformed_homogeneous.head<3>();
         pcd_world.colors_[i] = pcd->colors_[i];
     }
@@ -246,22 +253,26 @@ std::vector<Eigen::Vector3d> nbvstrategy::projectEllipsoidstoImage(
 }
 
 void nbvstrategy::getNBV(std::string ply_path, 
-    Eigen::Vector3d coordinates, 
+    double x, double y, double z, 
     double yaw,
     double pitch) 
 {
-    open3d::geometry::PointCloud pcd;
-    if (!open3d::io::ReadPointCloud(ply_path, pcd)) {
+    open3d::geometry::PointCloud pcd_camera;
+    if (!open3d::io::ReadPointCloud(ply_path, pcd_camera)) {
         std::cerr << "Failed to read PLY file: " << ply_path << std::endl;
         return;
     }
-    std::cout << "Loaded point cloud with " << pcd.points_.size() << " points." << std::endl;
+    std::cout << "Loaded point cloud with " << pcd_camera.points_.size() << " points." << std::endl;
 
     // actually need to transform point cloud coordinates to world first
     // given its coordinates and pitch and yaw,
     // the equation for this would just be pitch matrix * yaw matrix
     // with the translation appended on the right, so would be a 4x4
-
+    Eigen::Matrix4d camera_world = this->getCameraPose(Eigen::Matrix<double,5,1>(x,y,z,yaw,pitch));
+    open3d::geometry::PointCloud pcd = T_cam_pcd_to_world(
+        camera_world,
+        &pcd_camera
+    );
 
     // crop point cloud
     this->voxel_struct->cropBBX(this->bbx_min, this->bbx_max, &pcd);
