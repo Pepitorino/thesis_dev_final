@@ -12,6 +12,7 @@ voxelstruct::voxelstruct(double resolution)
     this->tree = new octomap::ColorOcTree(resolution);
 }
 
+// for further optimization
 void voxelstruct::cropBBX(
     const Eigen::Vector3d& bbx_min,
     const Eigen::Vector3d& bbx_max,
@@ -48,7 +49,7 @@ void voxelstruct::cropBBX(
         colors.swap(new_colors);
 }
 
-
+// for further optimization
 void voxelstruct::insertPointCloud(
     open3d::geometry::PointCloud* pcd,
     Eigen::Vector3d camera) 
@@ -79,6 +80,7 @@ void voxelstruct::insertPointCloud(
     tree->updateInnerOccupancy();
 }
 
+// for further optimization
 void voxelstruct::classifyVoxels() {
     this->surface_frontiers.clear();
     this->occupied_voxels.clear();

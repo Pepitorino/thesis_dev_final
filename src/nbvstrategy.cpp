@@ -24,13 +24,15 @@ T getOrDefault(const json& j, const std::string& key, T fallback) {
     return fallback;
 }
 
-std::vector<double> getVectorOrEmpty(const json& j, const std::string& key) {
+std::vector<double> getVectorOrEmpty(const json& j, const std::string& key) 
+{
     if (j.contains(key) && j[key].is_array())
         return j[key].get<std::vector<double>>();
     return {};
 }
 
-Eigen::Vector3d getVec3OrDefault(const json& j, const std::string& key) {
+Eigen::Vector3d getVec3OrDefault(const json& j, const std::string& key) 
+{
     if (j.contains(key)) {
         const auto& obj = j[key];
         if (obj.contains("x") && obj.contains("y") && obj.contains("z")) {
@@ -214,7 +216,9 @@ void nbvstrategy::generateViewpoints()
     }
 }
 
-Eigen::Matrix4d nbvstrategy::getCameraPose(const Eigen::Matrix<double,5,1> &vp) {
+Eigen::Matrix4d nbvstrategy::getCameraPose(
+    const Eigen::Matrix<double,5,1> &vp) 
+{
     Eigen::Matrix3d R_yaw = Eigen::AngleAxisd(
                             vp(3),Eigen::Vector3d::UnitY())
                             .toRotationMatrix();
@@ -248,12 +252,49 @@ open3d::geometry::PointCloud nbvstrategy::T_cam_pcd_to_world(
     return pcd_world;
 }
 
+// also for further optimization
 std::vector<Eigen::Vector3d> nbvstrategy::projectEllipsoidstoImage(
         const std::vector<EllipsoidParam> &ellipsoids,
         const Eigen::Matrix4d &T_cam_world,
         const Camera &cam) 
 {
-    return NULL;
+    Eigen::Matrix4d T_world_cam = T_cam_world.inverse();
+    Eigen::Matrix3d R_wc = T_world_cam.block<3,3>(0,0);
+    Eigen::Matrix3d R_tc = T_world_cam.block<3,1>(0,3);
+    
+    // sanity reminder, don't need the camera matrix here yet since
+    // transformations from 3d to 3d don't require intrinsic parameters
+    // however projections for example 3d to 2d do required it 
+    // so that will be done later
+    std::vector<Eigen::Vector3d> centers(ellipsoids.size());
+    #pragma omp parallel for
+    for (size_t i = 0; i < ellipsoids.size(); i++) {
+        Eigen::Vector3d center_world = ellipsoids[i].pose.block<3,1>(0,3);
+        centers[i] = R_wc * center_world + t_wc;
+    }
+
+    // weighting the centers, reminder that 
+    // still don't need intrinsic parameters for this
+    std::vector<size_t> idx(centers.size());
+    std::iota(idx.begin(), idx.end(), 0);
+    std::sort(idx.begin(), idx.end(),
+        [&centers](size_t i1, size_t i2) { return centers[i1].z() < centers[i2].z(); });
+
+    std::vector<double> weights(centers.size());
+    for (size_t i = 0; i < idx.size(); i++) {
+        weights[idx[i]] = 1 * pow(0.5, static_cast<double>(i));
+    }
+
+    cv::Mat img(cv::Size(image_size_.first, image_size_.second), CV_8UC3, cv::Scalar(255,255,255));
+
+    for (size_t i = 0; i < ellipsoids.size(); i++) {
+        Eigen::Vector3d radii = ellipsoids[i].radii;
+        Eigen::Vector3d box_min = centers[i] - radii;
+        Eigen::Vector3d box_max = centers[i] + radii;
+
+        bool visible = false;
+        std""
+    }
 }
 
 void nbvstrategy::getNBV(std::string ply_path, 
