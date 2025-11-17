@@ -18,6 +18,7 @@ public:
     std::vector<Eigen::Vector3d> getSurfaceFrontiers();
     std::vector<Eigen::Vector3d> getOccupiedVoxels();
     std::vector<Eigen::Vector3d> getROISurfaceFrontiers();
+    int size();
 
 private:
     double resolution;

@@ -138,14 +138,18 @@ void voxelstruct::classifyVoxels() {
     }
 }
 
-std::vector<Eigen::Vector3d> getSurfaceFrontiers() {
+std::vector<Eigen::Vector3d> voxelstruct::getSurfaceFrontiers() {
     return this->surface_frontiers;
 };  
 
-std::vector<Eigen::Vector3d> getOccupiedVoxels() {
+std::vector<Eigen::Vector3d> voxelstruct::getOccupiedVoxels() {
     return this->occupied_voxels;
 };
 
-std::vector<Eigen::Vector3d> getROISurfaceFrontiers() {
-    return this->roi_surface_frontier
+std::vector<Eigen::Vector3d> voxelstruct::getROISurfaceFrontiers() {
+    return this->roi_surface_frontier;
 };
+
+int voxelstruct::size() {
+    return this->tree->size();
+}

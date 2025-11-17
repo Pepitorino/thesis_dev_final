@@ -214,23 +214,64 @@ void nbvstrategy::generateViewpoints()
     }
 }
 
-void nbvstrategy::getNBV(std::string view_file_path, Eigen::Vector3d coordinates, Eigen::Matrix4d camera_pose_relative_to_world, Eigen::Vector3d camera_coordinates) {
-    geometry::PointCloud pcd;
-    if (!io::ReadPointCloud(ply_path, pcd)) {
+Eigen::Matrix4d nbvstrategy::getCameraPose(const Eigen::Matrix<double,5,1> &vp) {
+
+}
+
+open3d::geometry::PointCloud T_cam_pcd_to_world(
+    const Eigen::Matrix4d &T_cam_world, 
+    const open3d::geometry::PointCloud* pcd) 
+{
+    open3d::geometry::PointCloud pcd_world;
+    pcd_world.points_.resize(pcd->points_.size());
+    
+    #pragma omp parallel for
+    for (int i = 0; i < static_cast<int>(pcd->points_.size()); i++) {
+        const auto &p = pcd->points_[i];
+        Eigen::Vector4d p_homogeneous(p(0),p(1),p(2), 1.0);
+        Eigen::Vector4d p_transformed_homogeneous = T_cam_world * p_hom;
+        pcd_world.points_[i] = p_transformed_homogeneous.head<3>();
+        pcd_world.colors_[i] = pcd->colors_[i];
+    }
+
+    return pcd_world;
+}
+
+std::vector<Eigen::Vector3d> nbvstrategy::projectEllipsoidstoImage(
+        const std::vector<EllipsoidParam> &ellipsoids,
+        const Eigen::Matrix4d &T_cam_world,
+        const Camera &cam) 
+{
+
+}
+
+void nbvstrategy::getNBV(std::string ply_path, 
+    Eigen::Vector3d coordinates, 
+    double yaw,
+    double pitch) 
+{
+    open3d::geometry::PointCloud pcd;
+    if (!open3d::io::ReadPointCloud(ply_path, pcd)) {
         std::cerr << "Failed to read PLY file: " << ply_path << std::endl;
-        return 1;
+        return;
     }
     std::cout << "Loaded point cloud with " << pcd.points_.size() << " points." << std::endl;
 
+    // actually need to transform point cloud coordinates to world first
+    // given its coordinates and pitch and yaw,
+    // the equation for this would just be pitch matrix * yaw matrix
+    // with the translation appended on the right, so would be a 4x4
+
+
     // crop point cloud
-    this->voxel_struct->cropBBX(this->bbx_min, this->bbx_max, pcd);
-    cout << "\nPoint Cloud cropped!" << std::endl;
-    cout << "New point cloud size: " << pcd.points_.size() << std::endl;
+    this->voxel_struct->cropBBX(this->bbx_min, this->bbx_max, &pcd);
+    std::cout << "\nPoint Cloud cropped!" << std::endl;
+    std::cout << "New point cloud size: " << pcd.points_.size() << std::endl;
 
     // insert point cloud into voxelstruct
-    this->voxel_struct->insertPointCloud(&pcd, camera_coordinates);
-    cout << "\nPoint Cloud inserted! " << std::endl;
-    cout << "New size of Octree: " << this->voxel_struct->getNumLeafNodes(); 
+    this->voxel_struct->insertPointCloud(&pcd, coordinates);
+    std::cout << "\nPoint Cloud inserted! " << std::endl;
+    std::cout << "New size of Octree: " << this->voxel_struct->size(); 
 
     // classify voxels
     this->voxel_struct->classifyVoxels();
@@ -240,9 +281,25 @@ void nbvstrategy::getNBV(std::string view_file_path, Eigen::Vector3d coordinates
     std::vector<Eigen::Vector3d> occupied_voxels = this->voxel_struct->getOccupiedVoxels();
     std::vector<Eigen::Vector3d> roi_surface_frontier = this->voxel_struct->getROISurfaceFrontiers();
 
+    std::cout << "\nVoxels Classified!" << std::endl;
+    std::cout << "Number of frontier voxels: " << surface_frontiers.size() << std::endl;
+    std::cout << "Number of occupied voxels: " << occupied_voxels.size() << std::endl;
+    std::cout << "Number of roi frontier voxels: " << roi_surface_frontier.size() << std::endl;
+
     // cluster each of these sets using gmm clusters
-    frontier_clusters = gmm_Clustering()
-    // 
+    std::vector<std::vector<Eigen::Vector3d>> frontier_clusters = this->ellipsoid_fitting->gmm_clustering(surface_frontiers);
+    std::vector<std::vector<Eigen::Vector3d>> occupied_clusters = this->ellipsoid_fitting->gmm_clustering(occupied_voxels);
+    std::vector<std::vector<Eigen::Vector3d>> roi_surface_frontier_clusters = this->ellipsoid_fitting->gmm_clustering(roi_surface_frontier);
+    
+    // ellipsoid fitting
+    std::vector<EllipsoidParam> ellipsoids = this->ellipsoid_fitting->ellipsoidize_clusters_CGAL(
+        frontier_clusters,
+        occupied_clusters,
+        roi_surface_frontier_clusters
+    ); 
+
+    // projection
+
 
 }
 

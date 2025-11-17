@@ -11,7 +11,6 @@ int main (int argc, char** argv) {
         return -1;
     }
     std::string settings_path = std::string(argv[1]);
-    voxelstruct voxelstruct(0.05);
     nbvstrategy nbv;
     if(nbv.initialize(settings_path)==-1) return -1;
     return 0;
