@@ -12,7 +12,7 @@ public:
     void destroy();
     int initialize(std::string settings_path);
     void getNBV(std::string view_file_path, 
-    Eigen::Vector3d coordinates, 
+    double x, double y, double z, 
     double yaw,
     double pitch);
 
@@ -20,7 +20,7 @@ private:
     Eigen::Matrix4d getCameraPose(const Eigen::Matrix<double,5,1> &vp);
 
     open3d::geometry::PointCloud T_cam_pcd_to_world(
-        const Eigen::Matrix<double,5,1> &T_cam_world, 
+        const Eigen::Matrix4d &T_cam_world, 
         const open3d::geometry::PointCloud* pcd);
 
     std::vector<Eigen::Vector3d> projectEllipsoidstoImage(

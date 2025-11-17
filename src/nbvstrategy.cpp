@@ -215,8 +215,12 @@ void nbvstrategy::generateViewpoints()
 }
 
 Eigen::Matrix4d nbvstrategy::getCameraPose(const Eigen::Matrix<double,5,1> &vp) {
-    Eigen::Matrix3d R_yaw = Eigen::AngleAxisd(vp(3),Eigen::Vector3d::UnitY());
-    Eigen::Matrix3d R_pitch = Eigen::AngleAxisd(vp(4), Eigen::Vector3d::UnitZ());
+    Eigen::Matrix3d R_yaw = Eigen::AngleAxisd(
+                            vp(3),Eigen::Vector3d::UnitY())
+                            .toRotationMatrix();
+    Eigen::Matrix3d R_pitch = Eigen::AngleAxisd(
+                            vp(4), Eigen::Vector3d::UnitZ())
+                            .toRotationMatrix();
     Eigen::Matrix4d T;
     T.block<3,3>(0,0) = R_yaw*R_pitch;
     T.block<3,1>(0,3) = Eigen::Vector3d(vp(0),vp(1),vp(2)); 
@@ -224,7 +228,7 @@ Eigen::Matrix4d nbvstrategy::getCameraPose(const Eigen::Matrix<double,5,1> &vp) 
 }
 
 //for futher optimization - parallelable
-open3d::geometry::PointCloud T_cam_pcd_to_world(
+open3d::geometry::PointCloud nbvstrategy::T_cam_pcd_to_world(
     const Eigen::Matrix4d &T_cam_world, 
     const open3d::geometry::PointCloud* pcd) 
 {
@@ -249,7 +253,7 @@ std::vector<Eigen::Vector3d> nbvstrategy::projectEllipsoidstoImage(
         const Eigen::Matrix4d &T_cam_world,
         const Camera &cam) 
 {
-
+    return NULL;
 }
 
 void nbvstrategy::getNBV(std::string ply_path, 
@@ -269,10 +273,11 @@ void nbvstrategy::getNBV(std::string ply_path,
     // the equation for this would just be pitch matrix * yaw matrix
     // with the translation appended on the right, so would be a 4x4
     Eigen::Matrix4d camera_world = this->getCameraPose(Eigen::Matrix<double,5,1>(x,y,z,yaw,pitch));
-    open3d::geometry::PointCloud pcd = T_cam_pcd_to_world(
+    open3d::geometry::PointCloud pcd = this->T_cam_pcd_to_world(
         camera_world,
         &pcd_camera
     );
+    Eigen::Vector3d coordinates = camera_world.block<3,1>(0,3);
 
     // crop point cloud
     this->voxel_struct->cropBBX(this->bbx_min, this->bbx_max, &pcd);
