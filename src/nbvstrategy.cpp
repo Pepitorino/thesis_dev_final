@@ -456,9 +456,9 @@ std::pair<double, cv::Mat> nbvstrategy::projectEllipsoidstoImage(
     // (a,b,c,d,e,f) for the ellipse equation
     // time to "project it"
     cv::Mat img(this->cam.height, this->cam.width, CV_8UC3, cv::Scalar(0,0,0));
-    float occupied_res = 0;
-    float frontier_res = 0;
-    float roi_surface_frontier_res = 0;
+    double occupied_res = 0.0;
+    double frontier_res = 0.0;
+    double roi_surface_frontier_res = 0.0;
 
     int totalPixels = this->cam.width * this->cam.height;
 
@@ -551,6 +551,11 @@ void nbvstrategy::getNBV(std::string ply_path,
     std::vector<std::vector<Eigen::Vector3d>> occupied_clusters = this->ellipsoid_fitting->gmm_clustering(occupied_voxels);
     std::vector<std::vector<Eigen::Vector3d>> roi_surface_frontier_clusters = this->ellipsoid_fitting->gmm_clustering(roi_surface_frontier);
     
+    std::cout << "\nVoxels Clustered!" << std::endl;
+    std::cout << "Number of frontier clusters: " << frontier_clusters.size();
+    std::cout << "Number of occupied clusters: " << occupied_clusters.size();
+    std::cout << "Number of roi frontier clusters: " << roi_surface_frontier_clusters.size();    
+
     // ellipsoid fitting
     std::vector<EllipsoidParam> ellipsoids = this->ellipsoid_fitting->ellipsoidize_clusters_CGAL(
         frontier_clusters,
@@ -558,8 +563,43 @@ void nbvstrategy::getNBV(std::string ply_path,
         roi_surface_frontier_clusters
     ); 
 
+    std::cout << "\nEllipsoids fitted!" << std::endl;
+    std::cout << "Number of Ellipsoids: " << ellipsoids.size() << std::endl;
+
     // projection
     // get each vps pose and thats what you pass to project ellipsoids
+    for (size_t i = 0; i < this->viewpoints.size(); i++) {
+        auto T_cam_world = this->getCameraPose(this->viewpoints[i]);
+        std::pair<double, cv::Mat> score_and_img = this->projectEllipsoidstoImage(ellipsoids,T_cam_world);
 
+        double score = score_and_img.first;
+        cv::Mat img = score_and_img.second;
+
+        this->images_and_scores.push_back({{score, this->viewpoints[i]}, img});
+
+        if (score > best_score) {
+            this->best_score = score;
+            this->best_image = img;
+            this->best_viewpoint = this->viewpoints[i]; 
+            this->best_viewpoint_index = i;
+        }
+    }
+
+    if (best_viewpoint_index < this->viewpoints.size()) {
+        this->viewpoints.erase(this->viewpoints.begin() + best_viewpoint_index);
+    }
+
+    std::cout << "\nBest viewpoint: " << this->best_viewpoint.transpose() << std::endl;
+    std::cout << "Best viewpoint score: " << this->best_score << std::endl;
+    // Display the best viewpoint image
+    cv::imshow("Best Viewpoint", best_image);
+    cv::imwrite("best_viewpoint.png", best_image);
+
+
+    // Wait for a key press (0 means wait indefinitely)
+    cv::waitKey(0);
+
+    // Optionally, destroy the window after
+    cv::destroyWindow("Best Viewpoint");
 }
 
