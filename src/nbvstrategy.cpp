@@ -552,9 +552,9 @@ void nbvstrategy::getNBV(std::string ply_path,
     std::vector<std::vector<Eigen::Vector3d>> roi_surface_frontier_clusters = this->ellipsoid_fitting->gmm_clustering(roi_surface_frontier);
     
     std::cout << "\nVoxels Clustered!" << std::endl;
-    std::cout << "Number of frontier clusters: " << frontier_clusters.size();
-    std::cout << "Number of occupied clusters: " << occupied_clusters.size();
-    std::cout << "Number of roi frontier clusters: " << roi_surface_frontier_clusters.size();    
+    std::cout << "Number of frontier clusters: " << frontier_clusters.size() << std::endl;
+    std::cout << "Number of occupied clusters: " << occupied_clusters.size() << std::endl;
+    std::cout << "Number of roi frontier clusters: " << roi_surface_frontier_clusters.size() << std::endl;    
 
     // ellipsoid fitting
     std::vector<EllipsoidParam> ellipsoids = this->ellipsoid_fitting->ellipsoidize_clusters_CGAL(
