@@ -23,11 +23,16 @@ private:
         const Eigen::Matrix4d &T_cam_world, 
         const open3d::geometry::PointCloud* pcd);
 
-    std::vector<Eigen::Vector3d> projectEllipsoidstoImage(
+    std::pair<double, cv::Mat> projectEllipsoidstoImage(
         const std::vector<EllipsoidParam> &ellipsoids,
-        const Eigen::Matrix4d &T_cam_world,
-        const Camera &cam);
+        const Eigen::Matrix4d &T_cam_world);
     
+    Eigen::Matrix4d create_ellipsoid_dual_matrix(
+        const EllipsoidParam &param);
+    
+    Eigen::Matrix3d compute_ellipsoid_projection(
+        const Eigen::Matrix<double, 3, 4> camera_matrix,
+        const Eigen::Matrix4d ellipsoid_matrix_dual);
     voxelstruct* voxel_struct;
     ellipsoid* ellipsoid_fitting;
 

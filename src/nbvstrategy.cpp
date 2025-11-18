@@ -252,15 +252,104 @@ open3d::geometry::PointCloud nbvstrategy::T_cam_pcd_to_world(
     return pcd_world;
 }
 
-// also for further optimization
-std::vector<Eigen::Vector3d> nbvstrategy::projectEllipsoidstoImage(
-        const std::vector<EllipsoidParam> &ellipsoids,
-        const Eigen::Matrix4d &T_cam_world,
-        const Camera &cam) 
+Eigen::Matrix4d nbvstrategy::
+create_ellipsoid_dual_matrix(const EllipsoidParam &param){
+    
+    Eigen::Matrix4d matrix = Eigen::Matrix4d::Zero(); 
+    Eigen::Vector3d radii_pow = param.radii.array().square(); 
+    Eigen::Vector3d radii_inv = radii_pow.array().inverse();
+    Eigen::Matrix4d transformation = param.pose; 
+
+    // 将radii_inv设置为matrix的前3x3的对角矩阵
+    matrix.block<3,3>(0,0) = radii_inv.asDiagonal();
+    matrix(3, 3) = -1;
+
+    double det = matrix.determinant(); 
+    if (det == 0) {
+        std::cout << "The determinant of the matrix is 0, the matrix is not invertible." << std::endl;
+        return Eigen::Matrix4d::Zero(); 
+    } else {
+        Eigen::Matrix4d matrix_dual_origin = matrix.inverse(); 
+        // std::cout << "Matrix Dual Origin:\n" << matrix_dual_origin << std::endl;
+        Eigen::Matrix4d matrix_dual = transformation * matrix_dual_origin * transformation.transpose(); // 计算最终的矩阵
+        // std::cout << "Matrix Dual:\n" << matrix_dual << std::endl;
+        return matrix_dual;
+    }
+}
+
+bool SphereInFrustum(
+        const Eigen::Vector3d &center_cam,
+        double rx, double ry, double rz,
+        const Eigen::Matrix3d &R_e_cam,
+        const Camera &cam)
 {
+    // Compute bounding sphere in camera coordinates
+    Eigen::Vector3d axis_x = R_e_cam.col(0) * rx;
+    Eigen::Vector3d axis_y = R_e_cam.col(1) * ry;
+    Eigen::Vector3d axis_z = R_e_cam.col(2) * rz;
+    double R = std::max({axis_x.norm(), axis_y.norm(), axis_z.norm()});
+
+    double x = center_cam.x();
+    double y = center_cam.y();
+    double z = center_cam.z();
+
+    // Depth rejection
+    if (z + R <= 0) return false;
+    if (z - R > cam.max_range) return false;
+
+    // Project center to pixels
+    double u_center = cam.fx * (x / z) + cam.cx;
+    double v_center = cam.fy * (y / z) + cam.cy;
+
+    // Project sphere radius
+    double u_rad = cam.fx * (R / z);
+    double v_rad = cam.fy * (R / z);
+
+    double u_min = u_center - u_rad;
+    double u_max = u_center + u_rad;
+    double v_min = v_center - v_rad;
+    double v_max = v_center + v_rad;
+
+    // Cull if completely outside image
+    if (u_max < 0) return false;
+    if (u_min >= cam.width) return false;
+    if (v_max < 0) return false;
+    if (v_min >= cam.height) return false;
+
+    return true;
+}
+
+Eigen::Matrix3d nbvstrategy::
+compute_ellipsoid_projection(
+    const Eigen::Matrix<double, 3, 4> camera_matrix,
+    const Eigen::Matrix4d ellipsoid_matrix_dual)
+{
+    
+
+    Eigen::Matrix3d ellipse_dual = camera_matrix * 
+                                    ellipsoid_matrix_dual * 
+                                    camera_matrix.transpose();
+
+    double det = ellipse_dual.determinant(); 
+    if (det == 0) {
+        std::cout << "The determinant of the matrix is 0, the matrix is not invertible." << std::endl;
+        return Eigen::Matrix3d::Zero(); 
+    } else {
+        Eigen::Matrix3d ellipse = ellipse_dual.inverse();
+        return ellipse;
+    }
+
+}
+
+// also for further optimization
+std::pair<double, cv::Mat> nbvstrategy::projectEllipsoidstoImage(
+        const std::vector<EllipsoidParam> &ellipsoids,
+        const Eigen::Matrix4d &T_cam_world) 
+{
+    // T_cam_world is expected to be the pose of the viewpoint
     Eigen::Matrix4d T_world_cam = T_cam_world.inverse();
     Eigen::Matrix3d R_wc = T_world_cam.block<3,3>(0,0);
-    Eigen::Matrix3d R_tc = T_world_cam.block<3,1>(0,3);
+    Eigen::Vector3d t_wc = T_world_cam.block<3,1>(0,3);
     
     // sanity reminder, don't need the camera matrix here yet since
     // transformations from 3d to 3d don't require intrinsic parameters
@@ -270,32 +359,146 @@ std::vector<Eigen::Vector3d> nbvstrategy::projectEllipsoidstoImage(
     #pragma omp parallel for
     for (size_t i = 0; i < ellipsoids.size(); i++) {
         Eigen::Vector3d center_world = ellipsoids[i].pose.block<3,1>(0,3);
-        centers[i] = R_wc * center_world + t_wc;
+        centers[i] = R_wc * center_world + t_wc; 
+        // this will put it into the camera's world (e.g. if the camera was 0,0)
     }
 
     // weighting the centers, reminder that 
     // still don't need intrinsic parameters for this
+    // since its already in the camera's world, we can use the z axis to weigh them
     std::vector<size_t> idx(centers.size());
     std::iota(idx.begin(), idx.end(), 0);
     std::sort(idx.begin(), idx.end(),
         [&centers](size_t i1, size_t i2) { return centers[i1].z() < centers[i2].z(); });
 
+    // assigning the weights
     std::vector<double> weights(centers.size());
     for (size_t i = 0; i < idx.size(); i++) {
         weights[idx[i]] = 1 * pow(0.5, static_cast<double>(i));
     }
+    
+    // building camera matrix
+    Eigen::Matrix3d K;
+    K << cam.fx, 0,      cam.cx,
+         0,      cam.fy, cam.cy,
+         0,      0,      1;
+    Eigen::Matrix3d R_inv = T_cam_world.block<3,3>(0,0).inverse();
+    Eigen::Matrix<double,3,4> Rt_inv;
+    Rt_inv.block<3,3>(0,0) = R_inv;
+    Rt_inv.block<3,1>(0,3) = R_inv*T_cam_world.block<3,1>(0,3);
+    Eigen::Matrix<double,3,4> P = K * Rt_inv;  
 
-    cv::Mat img(cv::Size(image_size_.first, image_size_.second), CV_8UC3, cv::Scalar(255,255,255));
+    // setting up image and ellipse vectors
+    std::vector<double> a_vec(ellipsoids.size());
+    std::vector<double> b_vec(ellipsoids.size());
+    std::vector<double> c_vec(ellipsoids.size());
+    std::vector<double> d_vec(ellipsoids.size());
+    std::vector<double> e_vec(ellipsoids.size());
+    std::vector<double> f_vec(ellipsoids.size());
+    
+    // projecting the ellipsoids
+    // now this part will use the camera matrix
+    // sanity reminder that the center transformations already put it in the camera world
+    for (size_t k = 0; k < ellipsoids.size(); k++) {
+        size_t i = idx[k];
 
-    for (size_t i = 0; i < ellipsoids.size(); i++) {
-        Eigen::Vector3d radii = ellipsoids[i].radii;
-        Eigen::Vector3d box_min = centers[i] - radii;
-        Eigen::Vector3d box_max = centers[i] + radii;
-
-        bool visible = false;
-        std""
+        Eigen::Matrix3d R_e_world = ellipsoids[i].pose.block<3,3>(0,0);
+        Eigen::Matrix3d R_e_cam = R_wc * R_e_world;
+        
+        double rx = ellipsoids[i].radii.x();
+        double ry = ellipsoids[i].radii.y();
+        double rz = ellipsoids[i].radii.z();
+        
+        //cull ellipsoids first too
+        if (!SphereInFrustum(centers[i], rx, ry, rz, R_e_cam, cam)) {
+            a_vec[i] = 0;
+            b_vec[i] = 0;
+            c_vec[i] = 0;
+            d_vec[i] = 0;
+            e_vec[i] = 0;
+            f_vec[i] = 0;
+            continue; // skip this ellipsoid
+        }
+        
+        Eigen::Matrix4d dual = this->create_ellipsoid_dual_matrix(ellipsoids[i]);
+        if (dual == Eigen::Matrix4d::Zero())
+        {
+            a_vec[i] = 0;
+            b_vec[i] = 0;
+            c_vec[i] = 0;
+            d_vec[i] = 0;
+            e_vec[i] = 0;
+            f_vec[i] = 0;
+            continue;
+        }
+        
+        Eigen::Matrix3d ellipse_matrix = this->compute_ellipsoid_projection(P, dual);
+        if (ellipse_matrix == Eigen::Matrix3d::Zero())
+        {
+            a_vec[i] = 0;
+            b_vec[i] = 0;
+            c_vec[i] = 0;
+            d_vec[i] = 0;
+            e_vec[i] = 0;
+            f_vec[i] = 0;
+            continue;
+        }
+        
+        a_vec[i] = ellipse_matrix(0, 0);
+        b_vec[i] = ellipse_matrix(1, 1);
+        c_vec[i] = ellipse_matrix(0, 1) + ellipse_matrix(1, 0);
+        d_vec[i] = ellipse_matrix(0, 2) + ellipse_matrix(2, 0);
+        e_vec[i] = ellipse_matrix(1, 2) + ellipse_matrix(2, 1);
+        f_vec[i] = ellipse_matrix(2, 2); 
     }
-}
+    
+    // okay so we now have the centers, and the ellipse matrix coefficients
+    // (a,b,c,d,e,f) for the ellipse equation
+    // time to "project it"
+    cv::Mat img(this->cam.height, this->cam.width, CV_8UC3, cv::Scalar(0,0,0));
+    float occupied_res = 0;
+    float frontier_res = 0;
+    float roi_surface_frontier_res = 0;
+
+    int totalPixels = this->cam.width * this->cam.height;
+
+    for (int index = 0; index < totalPixels; index++) {
+        int k = index / this->cam.width;
+        int l = index % this->cam.width;
+        double x = l;
+        double y = k;
+        double xx = x*x;
+        double yy = y*y;
+        double xy = x*y;
+
+        for (size_t k = 0; k < ellipsoids.size(); k++) {
+            size_t i = idx[k];
+
+            if (a_vec[i] == 0 && b_vec[i] == 0 && c_vec[i] == 0 &&
+                d_vec[i] == 0 && e_vec[i] == 0 && f_vec[i] == 0)
+                continue;
+
+            double value = a_vec[i]*xx + b_vec[i]*yy + c_vec[i]*xy + d_vec[i]*x + e_vec[i]*y + f_vec[i];
+            if (value >= 0) continue;
+
+            if (ellipsoids[i].type == "frontier") {
+                img.at<cv::Vec3b>(k,l) = cv::Vec3b(0, 0, 255);  // Red
+                frontier_res += 255 * weights[i];
+            }
+            else if (ellipsoids[i].type == "roi_surface_frontier") {
+                img.at<cv::Vec3b>(k,l) = cv::Vec3b(0, 255, 0);  // Green
+                roi_surface_frontier_res += 255 * weights[i];
+            }
+            else if (ellipsoids[i].type == "occupied") {
+                img.at<cv::Vec3b>(k,l) = cv::Vec3b(255, 0, 0);  // Blue
+                occupied_res += 255 * weights[i];
+            }
+        }
+    }
+
+    double score = 2*roi_surface_frontier_res + frontier_res - occupied_res;
+    return std::make_pair(score, img);
+}   
 
 void nbvstrategy::getNBV(std::string ply_path, 
     double x, double y, double z, 
@@ -356,7 +559,7 @@ void nbvstrategy::getNBV(std::string ply_path,
     ); 
 
     // projection
-
+    // get each vps pose and thats what you pass to project ellipsoids
 
 }
 
