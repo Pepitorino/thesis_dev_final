@@ -227,6 +227,8 @@ std::vector<EllipsoidParam> ellipsoid::ellipsoidize_clusters_CGAL(
         std::cout << "Frontier ellipsoids computed: " << frontier_clusters.size() << std::endl;
     }
 
+    std::cout << "Total ellipsoids after frontier computed: " << ellipsoid_vec.size() << std::endl;
+
     // --- ROI Surface Frontier ---
     if (!roi_surface_frontier.empty())
     {
@@ -264,6 +266,8 @@ std::vector<EllipsoidParam> ellipsoid::ellipsoidize_clusters_CGAL(
         }
         std::cout << "ROI Surface Frontier ellipsoids computed: " << roi_surface_frontier.size() << std::endl;
     }
+
+    std::cout << "Total ellipsoids after roi frontier computed: " << ellipsoid_vec.size() << std::endl;
 
         // --- OCCUPIED CLUSTERS ---
     if (!occupied_clusters.empty())

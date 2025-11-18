@@ -3,6 +3,8 @@
 #include <Eigen/Dense>
 #include "nbvstrategy.hpp"
 #include "json.hpp"
+#include <string>
+#include <algorithm>
 
 using json = nlohmann::json;
 
@@ -598,6 +600,15 @@ void nbvstrategy::getNBV(std::string ply_path,
 
     std::cout << "\nEllipsoids fitted!" << std::endl;
     std::cout << "Number of Ellipsoids: " << ellipsoids.size() << std::endl;
+    
+    std::string input;
+    std::cout << "Continue? (Y/n): ";
+    std::cin >> input;
+    input.erase(0, input.find_first_not_of(" \t\n\r"));
+    input.erase(input.find_last_not_of(" \t\n\r") + 1);
+    std::transform(input.begin(), input.end(), input.begin(), ::tolower);
+    if (input == "y" || input == "yes");
+    if (input == "n" || input == "no") return;
 
     // projection
     // get each vps pose and thats what you pass to project ellipsoids
