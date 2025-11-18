@@ -20,7 +20,6 @@ public:
     cv::Mat best_image;
     Eigen::Matrix<double,5,1> best_viewpoint;
     size_t best_viewpoint_index;
-    std::vector<std::pair<std::pair<double, Eigen::Matrix<double,5,1>>, cv::Mat>> images_and_scores;
 private:
     Eigen::Matrix4d getCameraPose(const Eigen::Matrix<double,5,1> &vp);
 

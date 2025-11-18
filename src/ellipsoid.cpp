@@ -262,7 +262,7 @@ std::vector<EllipsoidParam> ellipsoid::ellipsoidize_clusters_CGAL(
             #pragma omp critical
             ellipsoid_vec.push_back(e);
         }
-        std::cout << "ROI Surface Frontier ellipsoids computed: " << occupied_clusters.size() << std::endl;
+        std::cout << "ROI Surface Frontier ellipsoids computed: " << roi_surface_frontier.size() << std::endl;
     }
 
         // --- OCCUPIED CLUSTERS ---

@@ -180,13 +180,35 @@ int nbvstrategy::initialize(std::string settings_path)
     return 0;
 }
 
+//helper function for viewpoint generation
+bool isInsideAnyPlantBBX(
+    const Eigen::Matrix<double,5,1> &vp,
+    const std::vector<PlantBBX> &bbx_plants)
+{
+    double x = vp(0);
+    double y = vp(1);
+    double z = vp(2);
+
+    for (const auto &bbx : bbx_plants) {
+        if (x >= bbx.min(0) && x <= bbx.max(0) &&
+            y >= bbx.min(1) && y <= bbx.max(1) &&
+            z >= bbx.min(2) && z <= bbx.max(2)) 
+        {
+            return true;   // Inside this plant BBX → return
+        }
+    }
+    return false; // Not inside any bbx
+}
+
+
 void nbvstrategy::generateViewpoints() 
 {
     size_t nx = (this->bbx_max[0] - this->bbx_min[0])/this->dx+1;
-    size_t ny = (this->bbx_max[0] - this->bbx_min[0])/this->dx+1;
-    size_t nz = (this->bbx_max[0] - this->bbx_min[0])/this->dx+1;
-    size_t nyaw = (this->bbx_max[0] - this->bbx_min[0])/this->dx+1;
-    size_t npitch = (this->bbx_max[0] - this->bbx_min[0])/this->dx+1;
+    // need to hardcode this part since the camera cant just be on the ground, but points can be in the bbx
+    size_t ny = (1.005 - 0.49)/this->dy;
+    size_t nz = (this->bbx_max[2] - this->bbx_min[2])/this->dz+1;
+    size_t nyaw = (M_PI/2)/this->dyaw+1;
+    size_t npitch = (M_PI/2)/this->dpitch+1;
 
     size_t total = nx*ny*nz*nyaw*npitch+5;
     this->viewpoints.reserve(total);
@@ -198,13 +220,15 @@ void nbvstrategy::generateViewpoints()
         #pragma omp for nowait
         for (size_t ix = 0; ix <= nx; ++ix) {
             double x = this->bbx_min[0] + (double)ix * this->dx;
-            for (double y = this->bbx_min[1]; y <= this->bbx_max[1]; y+= this->dy) {
+            for (double y = 0.49; y <= 1.005; y += this->dy) {
                 for (double z = this->bbx_min[2]; z <= this->bbx_max[2]; z += this->dz) {
-                    for (double pitch = 0; pitch < M_PI; pitch+= dpitch) {
-                        for (double yaw = 0; yaw < M_PI; yaw += dyaw) {
+                    for (double pitch = -M_PI/2; pitch < M_PI/2; pitch+= dpitch) {
+                        for (double yaw = -M_PI/2; yaw < M_PI/2; yaw += dyaw) {
                             Eigen::Matrix<double,5,1> vp;
                             vp << x, y, z, pitch, yaw;
+                            if (isInsideAnyPlantBBX(vp, this->bbx_plants)) continue; 
                             local_views.push_back(vp);
+
                         }
                     }
                 }
@@ -226,7 +250,7 @@ Eigen::Matrix4d nbvstrategy::getCameraPose(
                             vp(4), Eigen::Vector3d::UnitZ())
                             .toRotationMatrix();
     Eigen::Matrix4d T;
-    T.block<3,3>(0,0) = R_yaw*R_pitch;
+    T.block<3,3>(0,0) = R_pitch*R_yaw;
     T.block<3,1>(0,3) = Eigen::Vector3d(vp(0),vp(1),vp(2)); 
     return T;
 }
@@ -374,7 +398,7 @@ std::pair<double, cv::Mat> nbvstrategy::projectEllipsoidstoImage(
     // assigning the weights
     std::vector<double> weights(centers.size());
     for (size_t i = 0; i < idx.size(); i++) {
-        weights[idx[i]] = 1 * pow(0.5, static_cast<double>(i));
+        weights[idx[i]] = pow(0.5, static_cast<double>(idx.size() - 1 - i));
     }
     
     // building camera matrix
@@ -483,20 +507,20 @@ std::pair<double, cv::Mat> nbvstrategy::projectEllipsoidstoImage(
 
             if (ellipsoids[i].type == "frontier") {
                 img.at<cv::Vec3b>(k,l) = cv::Vec3b(0, 0, 255);  // Red
-                frontier_res += 255 * weights[i];
+                frontier_res += 1 * weights[i];
             }
             else if (ellipsoids[i].type == "roi_surface_frontier") {
                 img.at<cv::Vec3b>(k,l) = cv::Vec3b(0, 255, 0);  // Green
-                roi_surface_frontier_res += 255 * weights[i];
+                roi_surface_frontier_res += 1 * weights[i];
             }
             else if (ellipsoids[i].type == "occupied") {
                 img.at<cv::Vec3b>(k,l) = cv::Vec3b(255, 0, 0);  // Blue
-                occupied_res += 255 * weights[i];
+                occupied_res += 1 * weights[i];
             }
         }
     }
 
-    double score = 2*roi_surface_frontier_res + frontier_res - occupied_res;
+    double score = 2 * roi_surface_frontier_res + frontier_res; // - occupied_res;
     return std::make_pair(score, img);
 }   
 
@@ -505,6 +529,11 @@ void nbvstrategy::getNBV(std::string ply_path,
     double yaw,
     double pitch) 
 {
+    this->best_score = 0;
+    this->best_image = cv::Mat(this->cam.height, this->cam.width, CV_8UC3, cv::Scalar(0,0,0));
+    this->best_viewpoint = Eigen::Matrix<double,5,1>(0.0,0.0,0.0,0.0,0.0);
+    this->best_viewpoint_index = 0;
+
     open3d::geometry::PointCloud pcd_camera;
     if (!open3d::io::ReadPointCloud(ply_path, pcd_camera)) {
         std::cerr << "Failed to read PLY file: " << ply_path << std::endl;
@@ -523,11 +552,15 @@ void nbvstrategy::getNBV(std::string ply_path,
     );
     Eigen::Vector3d coordinates = camera_world.block<3,1>(0,3);
 
+    
     // crop point cloud
     this->voxel_struct->cropBBX(this->bbx_min, this->bbx_max, &pcd);
     std::cout << "\nPoint Cloud cropped!" << std::endl;
     std::cout << "New point cloud size: " << pcd.points_.size() << std::endl;
-
+    
+    open3d::io::WritePointCloud("test_output.pcd", pcd);
+    std::cout << "\nPoint Cloud translated to world coordinate system!" << std::endl;
+    
     // insert point cloud into voxelstruct
     this->voxel_struct->insertPointCloud(&pcd, coordinates);
     std::cout << "\nPoint Cloud inserted! " << std::endl;
@@ -568,20 +601,24 @@ void nbvstrategy::getNBV(std::string ply_path,
 
     // projection
     // get each vps pose and thats what you pass to project ellipsoids
+    #pragma omp parallel for
     for (size_t i = 0; i < this->viewpoints.size(); i++) {
         auto T_cam_world = this->getCameraPose(this->viewpoints[i]);
         std::pair<double, cv::Mat> score_and_img = this->projectEllipsoidstoImage(ellipsoids,T_cam_world);
 
         double score = score_and_img.first;
         cv::Mat img = score_and_img.second;
+        
+        std::cout << "Viewpoint [" << i << "] : " << score << std::endl;
 
-        this->images_and_scores.push_back({{score, this->viewpoints[i]}, img});
-
-        if (score > best_score) {
-            this->best_score = score;
-            this->best_image = img;
-            this->best_viewpoint = this->viewpoints[i]; 
-            this->best_viewpoint_index = i;
+        #pragma omp critical
+        {
+            if (score > best_score) {
+                this->best_score = score;
+                this->best_image = img.clone();
+                this->best_viewpoint = this->viewpoints[i]; 
+                this->best_viewpoint_index = i;
+            }
         }
     }
 
@@ -592,14 +629,14 @@ void nbvstrategy::getNBV(std::string ply_path,
     std::cout << "\nBest viewpoint: " << this->best_viewpoint.transpose() << std::endl;
     std::cout << "Best viewpoint score: " << this->best_score << std::endl;
     // Display the best viewpoint image
-    cv::imshow("Best Viewpoint", best_image);
+    // cv::imshow("Best Viewpoint", best_image);
     cv::imwrite("best_viewpoint.png", best_image);
 
 
     // Wait for a key press (0 means wait indefinitely)
-    cv::waitKey(0);
+    // cv::waitKey(0);
 
     // Optionally, destroy the window after
-    cv::destroyWindow("Best Viewpoint");
+    // cv::destroyWindow("Best Viewpoint");
 }
 
