@@ -29,7 +29,7 @@
     },
 
     "octomap": {
-        "resolution": 0.1
+        "resolution": 0.01
     },
 
     "xyzypgenf": {
